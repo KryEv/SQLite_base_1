@@ -55,20 +55,18 @@ func TestAddGetDelete(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, parcel.Client, p.Client, "The Client does not match")
-	assert.Equal(t, parcel.Status, p.Status, "The Status does not match")
-	assert.Equal(t, parcel.Address, p.Address, "The Address does not match")
-	assert.Equal(t, parcel.CreatedAt, p.CreatedAt, "The CreatedAt does not match")
+	parcel.Number = id
+
+	assert.Equal(t, parcel, p, "The answer does not match")
 
 	// delete
 
 	err = store.Delete(id)
 	require.NoError(t, err)
 
-	pp, err := store.Get(id)
-	require.NoError(t, err)
+	_, err = store.Get(id)
 
-	assert.NotEqual(t, p, pp, "The parcel has not been removed from the database")
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 }
 
@@ -198,12 +196,7 @@ func TestGetByClient(t *testing.T) {
 	for _, parcel := range storedParcels {
 
 		p := parcelMap[parcel.Number]
-		assert.Equal(t, p.Number, parcel.Number, "The Number does not match")
-
-		assert.Equal(t, p.Client, parcel.Client, "The Client does not match")
-		assert.Equal(t, p.Status, parcel.Status, "The Status does not match")
-		assert.Equal(t, p.Address, parcel.Address, "The Address does not match")
-		assert.Equal(t, p.CreatedAt, parcel.CreatedAt, "The CreatedAt does not match")
+		assert.Equal(t, p, parcel, "The answer does not match")
 
 	}
 }

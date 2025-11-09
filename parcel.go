@@ -39,29 +39,18 @@ func (s ParcelStore) Add(p Parcel) (int, error) {
 
 func (s ParcelStore) Get(number int) (Parcel, error) {
 
+	// запрос на чтение из базы
+	rows := s.db.QueryRow("SELECT number, client, status, address, created_at FROM parcel WHERE number = :number",
+		sql.Named("number", number))
+
 	p := Parcel{}
 
-	// запрос на чтение из базы
-	rows, err := s.db.Query("SELECT number, client, status, address, created_at FROM parcel WHERE number = :number",
-		sql.Named("number", number))
+	// парсим строку ответа
+	err := rows.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
 
 	// проверка на наличие ошибки
 	if err != nil {
 		return Parcel{}, err
-	}
-
-	// отложенное закрытие
-	defer rows.Close()
-
-	// парсим ответ
-	for rows.Next() {
-
-		err := rows.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
-
-		// проверка на наличие ошибки
-		if err != nil {
-			return Parcel{}, err
-		}
 	}
 
 	return p, nil
@@ -96,6 +85,12 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 		res = append(res, p)
 	}
 
+	err = rows.Err()
+	// проверка на наличие ошибки
+	if err != nil {
+		return []Parcel{}, err
+	}
+
 	return res, nil
 }
 
@@ -116,25 +111,15 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 
 func (s ParcelStore) SetAddress(number int, address string) error {
 
-	// запрос данных из базы
-	p, err := s.Get(number)
+	// обновление адреса в таблице parcel
+	_, err := s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number AND status = :status",
+		sql.Named("address", address),
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered))
 
 	// проверка на наличие ошибки
 	if err != nil {
 		return err
-	}
-
-	// проверяем статус посылки
-	if p.Status == ParcelStatusRegistered {
-		// обновление адреса в таблице parcel
-		_, err := s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number",
-			sql.Named("address", address),
-			sql.Named("number", number))
-
-		// проверка на наличие ошибки
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -142,23 +127,14 @@ func (s ParcelStore) SetAddress(number int, address string) error {
 
 func (s ParcelStore) Delete(number int) error {
 
-	// запрос данных из базы
-	p, err := s.Get(number)
+	// удаление строки из таблицы parcel
+	_, err := s.db.Exec("DELETE FROM parcel WHERE number = :number AND status = :status",
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered))
 
 	// проверка на наличие ошибки
 	if err != nil {
 		return err
-	}
-
-	// строку можно только если значение статуса registered
-	if p.Status == ParcelStatusRegistered {
-		// удаление строки из таблицы parcel
-		_, err = s.db.Exec("DELETE FROM parcel WHERE number = :number", sql.Named("number", number))
-
-		// проверка на наличие ошибки
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
